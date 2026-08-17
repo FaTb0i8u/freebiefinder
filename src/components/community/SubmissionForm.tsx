@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { Plus, X, Send } from "lucide-react";
 
 type Status = "idle" | "loading" | "success" | "error" | "ratelimited";

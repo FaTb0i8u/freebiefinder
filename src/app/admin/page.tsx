@@ -1,4 +1,4 @@
-import { eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { communitySubmissions, changeReports } from "@/db/schema";
 import { approveSubmission, rejectSubmission, dismissChangeReport } from "./actions";

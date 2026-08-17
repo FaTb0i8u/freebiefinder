@@ -5,24 +5,55 @@ import { changeReports } from "@/db/schema";
 import { checkRateLimit } from "@/lib/rateLimit";
 import { hashIp, getIpFromRequest } from "@/lib/ipHash";
 
-// ─── GET — admin: fetch open change reports ──────────────────────────────────
+// ─── GET — public summary OR admin full list ─────────────────────────────────
+// Without ?key=  → returns { flaggedIds: string[] } (freebieIds with ≥3 reports)
+// With    ?key=  → returns full report rows (admin only)
+
+const FLAG_THRESHOLD = 3;
 
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
-  if (!key || key !== process.env.ADMIN_SECRET_KEY) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Admin: full report list
+  if (key) {
+    if (key !== process.env.ADMIN_SECRET_KEY) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+      const db   = getDb();
+      const rows = await db
+        .select()
+        .from(changeReports)
+        .where(eq(changeReports.status, "open"));
+      return NextResponse.json(rows);
+    } catch (err) {
+      console.error("GET /api/change-reports (admin) error:", err);
+      return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 });
+    }
   }
 
+  // Public: return only which freebieIds are flagged (count ≥ threshold)
   try {
     const db   = getDb();
     const rows = await db
-      .select()
+      .select({ freebieId: changeReports.freebieId })
       .from(changeReports)
       .where(eq(changeReports.status, "open"));
-    return NextResponse.json(rows);
+
+    // Count per freebieId
+    const counts: Record<string, number> = {};
+    for (const { freebieId } of rows) {
+      counts[freebieId] = (counts[freebieId] ?? 0) + 1;
+    }
+    const flaggedIds = Object.entries(counts)
+      .filter(([, count]) => count >= FLAG_THRESHOLD)
+      .map(([id]) => id);
+
+    return NextResponse.json({ flaggedIds });
   } catch (err) {
-    console.error("GET /api/change-reports error:", err);
-    return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 });
+    console.error("GET /api/change-reports (public) error:", err);
+    // Return empty rather than failing the whole page
+    return NextResponse.json({ flaggedIds: [] });
   }
 }
 

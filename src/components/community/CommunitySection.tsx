@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronUp, Plus, ThumbsUp, ThumbsDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SubmissionForm } from "./SubmissionForm";
 import type { CommunitySubmissionRow } from "@/db/schema";
@@ -21,6 +20,7 @@ export function CommunitySection() {
   // Lazy load — only fetch when the section is first opened
   useEffect(() => {
     if (!isOpen || fetched) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetch("/api/submissions")
       .then((r) => r.json())
