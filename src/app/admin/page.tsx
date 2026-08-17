@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { communitySubmissions, changeReports } from "@/db/schema";
 import { approveSubmission, rejectSubmission, dismissChangeReport } from "./actions";
+import { AdminLoginForm } from "./AdminLoginForm";
 
 interface AdminPageProps {
   searchParams: Promise<{ key?: string }>;
@@ -11,12 +12,14 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   const { key } = await searchParams;
   const adminKey = process.env.ADMIN_SECRET_KEY;
 
+  // No key provided → show login form
+  if (!key) {
+    return <AdminLoginForm />;
+  }
+
+  // Wrong key → show login form with error message
   if (!adminKey || key !== adminKey) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-950 text-white">
-        <p className="text-lg font-semibold text-red-400">401 — Unauthorized</p>
-      </div>
-    );
+    return <AdminLoginForm error />;
   }
 
   let pending: typeof communitySubmissions.$inferSelect[] = [];
