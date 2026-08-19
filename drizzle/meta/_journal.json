@@ -8,6 +8,20 @@
       "when": 1786999074330,
       "tag": "0000_tan_cyclops",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787158654276,
+      "tag": "0001_funny_thor_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787159489748,
+      "tag": "0002_blushing_shooting_star",
+      "breakpoints": true
     }
   ]
 }

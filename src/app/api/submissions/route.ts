@@ -67,6 +67,15 @@ export async function POST(req: NextRequest) {
       ? body.requirements.filter((r: unknown) => typeof r === "string" && r.trim())
       : [];
 
+    const availableCities: string[] = Array.isArray(body.availableCities)
+      ? body.availableCities.filter((c: unknown) => typeof c === "string" && c.trim())
+      : [];
+
+    const validCoverageTypes = ["national", "regional", "local"];
+    const coverageType = validCoverageTypes.includes(body.coverageType)
+      ? body.coverageType
+      : "national";
+
     const db = getDb();
     const [submission] = await db
       .insert(communitySubmissions)
@@ -81,6 +90,8 @@ export async function POST(req: NextRequest) {
         sourceUrl:        body.sourceUrl.trim(),
         status:           "pending",
         submitterIpHash:  ipHash,
+        coverageType,
+        availableCities,
       })
       .returning();
 

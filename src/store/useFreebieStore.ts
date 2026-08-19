@@ -10,6 +10,13 @@ interface FreebieStore {
   removedIds:    Set<string>;
   /** 1–12 (January=1). null means Birthday Mode is off. */
   birthdayMonth: number | null;
+  /** Display label for the user's chosen location (persisted). */
+  userCity:   string | null;
+  /** Radius in miles for nearby filtering (persisted). */
+  userRadius: number;
+  /** Lat/lng from GPS or geocoding — session only, not persisted. */
+  userLat:    number | null;
+  userLng:    number | null;
 
   // ─── Session (not persisted) ─────────────────────────────────────────────
   filters: FreebieFilters;
@@ -23,6 +30,10 @@ interface FreebieStore {
   setFilter:        <K extends keyof FreebieFilters>(key: K, value: FreebieFilters[K]) => void;
   resetFilters:     () => void;
   setBirthdayMonth: (month: number | null) => void;
+  setUserCity:      (city: string | null) => void;
+  setUserRadius:    (radius: number) => void;
+  setUserLocation:  (lat: number, lng: number, city: string) => void;
+  clearUserLocation: () => void;
 }
 
 const DEFAULT_FILTERS: FreebieFilters = {
@@ -37,6 +48,10 @@ export const useFreebieStore = create<FreebieStore>()(
       checkedIds:    new Set<string>(),
       removedIds:    new Set<string>(),
       birthdayMonth: null,
+      userCity:      null,
+      userRadius:    25,
+      userLat:       null,
+      userLng:       null,
       filters:       DEFAULT_FILTERS,
 
       toggleChecked: (id) =>
@@ -62,9 +77,13 @@ export const useFreebieStore = create<FreebieStore>()(
           return { removedIds: next };
         }),
 
-      clearAllRemoved:  () => set({ removedIds: new Set<string>() }),
-      clearAllChecked:  () => set({ checkedIds: new Set<string>() }),
-      setBirthdayMonth: (month) => set({ birthdayMonth: month }),
+      clearAllRemoved:   () => set({ removedIds: new Set<string>() }),
+      clearAllChecked:   () => set({ checkedIds: new Set<string>() }),
+      setBirthdayMonth:  (month)  => set({ birthdayMonth: month }),
+      setUserCity:       (city)   => set({ userCity: city ? city.trim() : null }),
+      setUserRadius:     (radius) => set({ userRadius: radius }),
+      setUserLocation:   (lat, lng, city) => set({ userLat: lat, userLng: lng, userCity: city }),
+      clearUserLocation: () => set({ userLat: null, userLng: null, userCity: null }),
 
       setFilter: (key, value) =>
         set((state) => ({ filters: { ...state.filters, [key]: value } })),
@@ -96,6 +115,8 @@ export const useFreebieStore = create<FreebieStore>()(
               checkedIds: Array.from(value.state.checkedIds),
               removedIds: Array.from(value.state.removedIds),
               filters: DEFAULT_FILTERS, // session-only
+              userLat: null,            // session-only — don't persist GPS coords
+              userLng: null,            // session-only
             },
           };
           localStorage.setItem(name, JSON.stringify(serialized));

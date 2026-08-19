@@ -43,6 +43,8 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
     claimWindow:      "birthday-month",
     claimWindowNotes: "",
     sourceUrl:        "https://",
+    coverageType:     "national",
+    initialCity:      "",
   });
 
   function setField(key: keyof typeof form, value: string) {
@@ -68,6 +70,7 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
     const payload = {
       ...form,
       requirements: requirements.filter((r) => r.trim()),
+      availableCities: form.initialCity.trim() ? [form.initialCity.trim()] : [],
     };
 
     try {
@@ -213,6 +216,35 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
             )}
           </div>
         </div>
+
+        {/* Coverage type */}
+        <div className="col-span-2 space-y-1">
+          <label className="text-xs font-medium text-foreground">Availability *</label>
+          <select
+            className={selectClass}
+            value={form.coverageType}
+            onChange={(e) => setField("coverageType", e.target.value)}
+          >
+            <option value="national">National — available everywhere</option>
+            <option value="regional">Regional — select cities/states only</option>
+            <option value="local">Local — one specific location</option>
+          </select>
+        </div>
+
+        {/* Initial city (for regional/local) */}
+        {form.coverageType !== "national" && (
+          <div className="col-span-2 space-y-1">
+            <label className="text-xs font-medium text-foreground">
+              {form.coverageType === "local" ? "Location" : "City where you found it"}
+            </label>
+            <Input
+              placeholder={form.coverageType === "local" ? "e.g. Austin, TX" : "e.g. Chicago"}
+              value={form.initialCity}
+              onChange={(e) => setField("initialCity", e.target.value)}
+            />
+            <p className="text-[10px] text-muted-foreground">Other users can add more cities later</p>
+          </div>
+        )}
 
         {/* Source URL */}
         <div className="col-span-2 space-y-1">
