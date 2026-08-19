@@ -3,6 +3,7 @@ import { getDb } from "@/db";
 import { communitySubmissions, changeReports } from "@/db/schema";
 import { approveSubmission, rejectSubmission, dismissChangeReport } from "./actions";
 import { AdminLoginForm } from "./AdminLoginForm";
+import { AdminCreateForm } from "./AdminCreateForm";
 
 interface AdminPageProps {
   searchParams: Promise<{ key?: string }>;
@@ -49,6 +50,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             ⚠️ Database not connected. Set DATABASE_URL in environment variables.
           </div>
         )}
+
+        {/* Quick-create approved entry */}
+        <AdminCreateForm adminKey={key!} />
 
         {/* Pending Submissions */}
         <section>
