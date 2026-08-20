@@ -28,6 +28,16 @@ export const communitySubmissions = pgTable("community_submissions", {
   coverageType:    text("coverage_type").notNull().default("national"),
   /** Cities/regions where this freebie is confirmed available */
   availableCities: text("available_cities").array().notNull().default([]),
+  /** For claimWindow="birthday-custom": days before birthday the window opens */
+  claimWindowDaysBefore: integer("claim_window_days_before"),
+  /** For claimWindow="birthday-custom": days after birthday the window closes */
+  claimWindowDaysAfter:  integer("claim_window_days_after"),
+  /** "none" | "any-purchase" | "min-purchase" | "prior-purchase" */
+  dealCondition:         text("deal_condition").notNull().default("none"),
+  /** For dealCondition="min-purchase": minimum spend in dollars */
+  minimumPurchaseAmount: integer("minimum_purchase_amount"),
+  /** For dealCondition="prior-purchase": e.g. "within the past year" */
+  priorPurchasePeriod:   text("prior_purchase_period"),
 });
 
 // ─── Votes on community submissions ──────────────────────────────────────────
@@ -40,16 +50,33 @@ export const votes = pgTable("votes", {
   createdAt:    timestamp("created_at").defaultNow(),
 });
 
-// ─── Change reports on curated freebies ──────────────────────────────────────
+// ─── Change reports on freebies (curated or community) ───────────────────────
 
 export const changeReports = pgTable("change_reports", {
   id:             uuid("id").primaryKey().defaultRandom(),
-  freebieId:      text("freebie_id").notNull(),
+  /** String ID of a curated freebie (e.g. "starbucks-birthday-drink"). Null if targeting a community submission. */
+  freebieId:      text("freebie_id"),
+  /** UUID of a community submission. Null if targeting a curated freebie. */
+  submissionId:   uuid("submission_id").references(() => communitySubmissions.id),
+  /** Human-readable description of what changed */
   description:    text("description").notNull(),
+  /**
+   * Structured proposed change — JSON string of ChangeProposal.
+   * Fields: dealCondition?, minimumPurchaseAmount?, priorPurchasePeriod?,
+   *         whatYouGet?, claimWindow?, isActive?
+   * If null, the report is descriptive only (no auto-apply possible).
+   */
+  proposedChanges: text("proposed_changes"),
   reporterIpHash: text("reporter_ip_hash").notNull(),
   trueVotes:      integer("true_votes").notNull().default(0),
   falseVotes:     integer("false_votes").notNull().default(0),
-  status:         text("status").notNull().default("open"), // open | resolved | dismissed
+  /**
+   * open        — awaiting votes
+   * escalated   — True votes hit threshold; awaiting admin action (curated) or auto-applied (community)
+   * resolved    — change applied / confirmed
+   * dismissed   — False votes dominant or admin dismissed
+   */
+  status:         text("status").notNull().default("open"),
   createdAt:      timestamp("created_at").defaultNow(),
 });
 
@@ -70,3 +97,19 @@ export type CommunitySubmissionRow = typeof communitySubmissions.$inferSelect;
 export type NewCommunitySubmission = typeof communitySubmissions.$inferInsert;
 export type ChangeReportRow        = typeof changeReports.$inferSelect;
 export type CityReportRow          = typeof cityReports.$inferSelect;
+
+/**
+ * Structured proposed change — stored as JSON in change_reports.proposed_changes.
+ * Only whitelisted fields may be auto-applied to prevent arbitrary data injection.
+ */
+export interface ChangeProposal {
+  dealCondition?:         "none" | "any-purchase" | "min-purchase" | "prior-purchase";
+  minimumPurchaseAmount?: number;
+  priorPurchasePeriod?:   string;
+  whatYouGet?:            string;
+  claimWindow?:           string;
+  isActive?:              false; // Can only deactivate, never re-activate via vote
+}
+
+/** Minimum votes to escalate/auto-apply. True votes must also be ≥ 3× false votes. */
+export const CHANGE_REPORT_THRESHOLD = 5;

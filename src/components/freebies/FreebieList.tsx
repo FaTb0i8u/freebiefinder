@@ -6,23 +6,38 @@ import { useFreebieStore } from "@/store/useFreebieStore";
 import { useHydration } from "@/hooks/useHydration";
 import { FreebieCard } from "./FreebieCard";
 import { PartyPopper } from "lucide-react";
+import type { ChangeProposal } from "@/db/schema";
+
+export interface ChangeReportSummary {
+  reportId:        string;
+  freebieId:       string | null;
+  description:     string;
+  proposedChanges: ChangeProposal | null;
+  trueVotes:       number;
+  falseVotes:      number;
+  status:          string;
+}
 
 export function FreebieList() {
   const hydrated   = useHydration();
   const filters    = useFreebieStore((s) => s.filters);
   const removedIds = useFreebieStore((s) => s.removedIds);
-  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+  const [changeReports, setChangeReports] = useState<Map<string, ChangeReportSummary>>(new Map());
 
-  // Fetch which freebieIds have enough change reports to be flagged
+  // Fetch change report summaries (description + vote counts per freebieId)
   useEffect(() => {
     fetch("/api/change-reports")
       .then((r) => r.json())
-      .then((data: { flaggedIds?: string[] }) => {
-        if (Array.isArray(data.flaggedIds)) {
-          setFlaggedIds(new Set(data.flaggedIds));
+      .then((data: { flaggedReports?: ChangeReportSummary[] }) => {
+        if (Array.isArray(data.flaggedReports)) {
+          const map = new Map<string, ChangeReportSummary>();
+          for (const report of data.flaggedReports) {
+            if (report.freebieId) map.set(report.freebieId, report);
+          }
+          setChangeReports(map);
         }
       })
-      .catch(() => {}); // fail silently — don't block the page
+      .catch(() => {});
   }, []);
 
   const filtered = useMemo(() => {
@@ -69,7 +84,7 @@ export function FreebieList() {
           <FreebieCard
             key={freebie.id}
             freebie={freebie}
-            isFlagged={flaggedIds.has(freebie.id)}
+            changeReport={changeReports.get(freebie.id) ?? null}
           />
         ))}
       </div>

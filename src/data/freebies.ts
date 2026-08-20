@@ -6,9 +6,16 @@ import type { Freebie } from "@/types/freebie";
  *
  * MAINTENANCE NOTE: Verify each entry against the source URL before major releases.
  * Policies change seasonally. Mark isActive: false to hide without deleting.
+ *
+ * dealCondition meanings:
+ *   "none"           — Nothing required at the register; just show up / open the app.
+ *   "any-purchase"   — Must buy something, any amount, in that transaction.
+ *   "min-purchase"   — Must spend at least minimumPurchaseAmount dollars that visit.
+ *   "prior-purchase" — Must have been a paying customer before (see priorPurchasePeriod).
+ *   Membership / rewards sign-up requirements live in requirements[], not here.
  */
 export const CURATED_FREEBIES: Freebie[] = [
-  // ─── Food & Drink ──────────────────────────────────────────────────────────
+  // ─── Food & Drink ────────────────────────────────────────────────────────────
   {
     id: "ihop-birthday-pancakes",
     businessName: "IHOP",
@@ -22,11 +29,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     claimWindow: "birthday-month",
     claimWindowNotes: "Valid the entire birthday month",
     registrationDeadline: "7 days before birthday",
+    dealCondition: "none",
     sourceUrl: "https://www.ihop.com/en/rewards",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["breakfast", "pancakes", "no-purchase-required"],
+    tags: ["breakfast", "pancakes"],
   },
   {
     id: "dennys-birthday-slam",
@@ -40,11 +48,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Valid on your birthday only; show ID",
+    dealCondition: "none",
     sourceUrl: "https://www.dennys.com/rewards/",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["breakfast", "no-purchase-required"],
+    tags: ["breakfast"],
   },
   {
     id: "starbucks-birthday-drink",
@@ -53,11 +62,14 @@ export const CURATED_FREEBIES: Freebie[] = [
     whatYouGet: "Free handcrafted drink or food item of any size",
     claimMethod: "app",
     requirements: [
-      "Starbucks Rewards membership (star balance required to be eligible — must have made at least one purchase in the past year)",
+      "Starbucks Rewards membership",
+      "Must have made at least one purchase in the past year to be eligible",
       "Registered birthday in your account",
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Reward expires at end of birthday; order via app or give your name at counter",
+    dealCondition: "prior-purchase",
+    priorPurchasePeriod: "at least one purchase in the past year",
     sourceUrl: "https://www.starbucks.com/rewards/",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -76,6 +88,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Valid on birthday only",
+    dealCondition: "none",
     sourceUrl: "https://www.dunkindonuts.com/en/dunkin-rewards",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -93,11 +106,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Coupon emailed; valid the entire birthday month",
+    dealCondition: "none",
     sourceUrl: "https://www.baskinrobbins.com/en/birthday-club",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["ice-cream", "dessert", "no-purchase-required"],
+    tags: ["ice-cream", "dessert"],
   },
   {
     id: "cold-stone-creamery-birthday",
@@ -110,6 +124,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Email coupon valid for the birthday month",
+    dealCondition: "none",
     sourceUrl: "https://www.coldstonecreamery.com/mycoldstoneclub",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -128,6 +143,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Reward available on birthday only in the app",
+    dealCondition: "none",
     sourceUrl: "https://www.sonicdrivein.com/app",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -142,15 +158,18 @@ export const CURATED_FREEBIES: Freebie[] = [
     claimMethod: "in-store",
     requirements: [
       "Red Robin Royalty membership",
-      "Purchase required",
+      "Must have spent at least $10 in the past year to qualify for the free burger",
     ],
     claimWindow: "birthday-week",
-    claimWindowNotes: "Valid during your birthday week; dine-in only",
+    claimWindowNotes: "Valid during your birthday week; dine-in only; $5 purchase required at redemption",
+    dealCondition: "min-purchase",
+    minimumPurchaseAmount: 5,
+    priorPurchasePeriod: "must have spent at least $10 in the past year",
     sourceUrl: "https://www.redrobin.com/royalty/",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["burger", "entree", "purchase-required"],
+    tags: ["burger", "entree"],
   },
   {
     id: "applebees-birthday-dessert",
@@ -163,11 +182,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Email coupon; valid the birthday month; varies by location",
+    dealCondition: "none",
     sourceUrl: "https://www.applebees.com/en/email-signup",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["dessert", "varies-by-location"],
+    tags: ["dessert"],
   },
   {
     id: "outback-birthday-dessert",
@@ -180,6 +200,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Email coupon; valid during birthday month",
+    dealCondition: "none",
     sourceUrl: "https://www.outback.com/dine-rewards",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -197,6 +218,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Valid the birthday month; dine-in",
+    dealCondition: "none",
     sourceUrl: "https://www.chilis.com/rewards",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -215,6 +237,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Reward appears in app on birthday",
+    dealCondition: "none",
     sourceUrl: "https://www.subway.com/en-US/myway",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -233,6 +256,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Reward active on birthday; may vary",
+    dealCondition: "none",
     sourceUrl: "https://www.panerabread.com/en-us/mypanera/rewards.html",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -240,7 +264,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     tags: ["pastry", "cafe", "app-required"],
   },
 
-  // ─── Food & Drink (continued — verified on official websites) ───────────────
+  // ─── Food & Drink (continued — verified on official websites) ─────────────
   {
     id: "cheesecake-factory-birthday-slice",
     businessName: "The Cheesecake Factory",
@@ -253,11 +277,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Valid during birthday month with any purchase; choice of any legendary cheesecake or layered cake slice",
+    dealCondition: "any-purchase",
     sourceUrl: "https://www.thecheesecakefactory.com/cheesecake-rewards",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["dessert", "cheesecake", "purchase-required"],
+    tags: ["dessert", "cheesecake"],
   },
   {
     id: "nothing-bundt-cakes-birthday",
@@ -271,11 +296,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Birthday reward emailed; redeem in-store during birthday month; no purchase required",
+    dealCondition: "none",
     sourceUrl: "https://www.nothingbundtcakes.com/bundtastic-rewards/",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["cake", "dessert", "no-purchase-required"],
+    tags: ["cake", "dessert"],
   },
   {
     id: "krispy-kreme-birthday",
@@ -288,7 +314,8 @@ export const CURATED_FREEBIES: Freebie[] = [
       "Register birthday in account",
     ],
     claimWindow: "birthday-month",
-    claimWindowNotes: "Birthday reward delivered via app; verify current offer in-app before visiting",
+    claimWindowNotes: "Birthday reward delivered via app; verify current offer in-app before visiting — historically requires a purchase",
+    dealCondition: "any-purchase",
     sourceUrl: "https://www.krispykreme.com/rewards",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -307,13 +334,15 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Choose from available free rewards in the app during your birthday month",
+    dealCondition: "none",
     sourceUrl: "https://www.chipotle.com/rewards",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
     tags: ["mexican", "app-required"],
   },
-  // ─── Community-sourced tips (reported by users — verify before visiting) ─────
+
+  // ─── Community-sourced tips (reported by users — verify before visiting) ───
   {
     id: "habit-burger-birthday",
     businessName: "Habit Burger & Grill",
@@ -326,11 +355,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Community-reported: no purchase required; verify current offer in app before visiting",
+    dealCondition: "none",
     sourceUrl: "https://www.habitburger.com/rewards/",
     source: "community",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["burger", "no-purchase-required", "app-required"],
+    tags: ["burger", "app-required"],
   },
   {
     id: "jersey-mikes-birthday",
@@ -344,11 +374,13 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Community-reported: prior purchase in past year required to qualify; verify in app",
+    dealCondition: "prior-purchase",
+    priorPurchasePeriod: "at least one purchase in the prior year",
     sourceUrl: "https://www.jerseymikes.com/rewards",
     source: "community",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["sandwich", "sub", "app-required", "purchase-required"],
+    tags: ["sandwich", "sub", "app-required"],
   },
   {
     id: "auntie-annes-birthday",
@@ -362,11 +394,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Community-reported: verify current offer in app before visiting",
+    dealCondition: "none",
     sourceUrl: "https://www.auntieannes.com/rewards",
     source: "community",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["pretzel", "snack", "app-required", "no-purchase-required"],
+    tags: ["pretzel", "snack", "app-required"],
   },
   {
     id: "wendys-birthday-frosty",
@@ -380,11 +413,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Community-reported: purchase required; verify in app on your birthday",
+    dealCondition: "any-purchase",
     sourceUrl: "https://www.wendys.com/app",
     source: "community",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["dessert", "frosty", "purchase-required", "app-required"],
+    tags: ["dessert", "frosty", "app-required"],
   },
   {
     id: "mcdonalds-birthday-free-item",
@@ -398,14 +432,15 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Community-reported: exact offer varies by year — check the app during your birthday month",
+    dealCondition: "none",
     sourceUrl: "https://www.mcdonalds.com/us/en-us/mobile-app.html",
     source: "community",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["fast-food", "app-required", "varies"],
+    tags: ["fast-food", "app-required"],
   },
 
-  // ─── Beauty ────────────────────────────────────────────────────────────────
+  // ─── Beauty ──────────────────────────────────────────────────────────────
   {
     id: "sephora-birthday-gift",
     businessName: "Sephora",
@@ -419,11 +454,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     claimWindow: "birthday-month",
     claimWindowNotes: "Claimable in-store or online during birthday month; choose from 2-3 curated options",
     registrationDeadline: "30 days before birthday month starts",
+    dealCondition: "none",
     sourceUrl: "https://www.sephora.com/beauty/birthday-gift",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["beauty", "samples", "no-purchase-required"],
+    tags: ["beauty", "samples"],
   },
   {
     id: "ulta-birthday-gift",
@@ -437,14 +473,15 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Valid during birthday month; in-store only; product changes annually",
+    dealCondition: "none",
     sourceUrl: "https://www.ulta.com/rewards/",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["beauty", "gift", "no-purchase-required"],
+    tags: ["beauty", "gift"],
   },
 
-  // ─── Retail / Shopping ─────────────────────────────────────────────────────
+  // ─── Retail / Shopping ────────────────────────────────────────────────────
   {
     id: "victorias-secret-birthday",
     businessName: "Victoria's Secret / PINK",
@@ -457,14 +494,15 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-month",
     claimWindowNotes: "Offer emailed; valid during birthday month; terms vary",
+    dealCondition: "none",
     sourceUrl: "https://www.victoriassecret.com/us/vs/collective",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: true,
-    tags: ["clothing", "varies"],
+    tags: ["clothing"],
   },
 
-  // ─── Entertainment ─────────────────────────────────────────────────────────
+  // ─── Entertainment ────────────────────────────────────────────────────────
   {
     id: "amc-birthday-popcorn",
     businessName: "AMC Theatres",
@@ -472,11 +510,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     whatYouGet: "Free large popcorn",
     claimMethod: "in-store",
     requirements: [
-      "AMC Stubs A-List, Premiere, or Insider membership",
+      "AMC Stubs A-List, Premiere, or Insider membership (paid or free tier)",
       "Birthday registered in account",
     ],
     claimWindow: "birthday-month",
-    claimWindowNotes: "Reward credited to account during birthday month; claim at concession stand",
+    claimWindowNotes: "Reward credited to account during birthday month; claim at concession stand — no additional purchase required",
+    dealCondition: "none",
     sourceUrl: "https://www.amctheatres.com/amcstubs",
     source: "curated",
     lastVerified: "2026-08-17",
@@ -484,7 +523,7 @@ export const CURATED_FREEBIES: Freebie[] = [
     tags: ["movies", "popcorn", "snack"],
   },
 
-  // ─── Online / Digital ──────────────────────────────────────────────────────
+  // ─── Online / Digital ─────────────────────────────────────────────────────
   {
     id: "amazon-prime-reading-birthday",
     businessName: "Kindle / Amazon",
@@ -496,11 +535,12 @@ export const CURATED_FREEBIES: Freebie[] = [
     ],
     claimWindow: "birthday-day-only",
     claimWindowNotes: "Amazon runs periodic birthday-related promotions; not guaranteed every year",
+    dealCondition: "none",
     sourceUrl: "https://www.amazon.com",
     source: "curated",
     lastVerified: "2026-08-17",
     isActive: false, // Marked inactive — inconsistent year-to-year
-    tags: ["digital", "varies"],
+    tags: ["digital"],
   },
 ];
 

@@ -36,12 +36,38 @@ const CLAIM_WINDOW_STYLES: Record<Freebie["claimWindow"], { label: string; class
   "birthday-week":     { label: "Week",     className: "bg-orange-100 text-orange-800 ring-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:ring-orange-800" },
   "birthday-month":    { label: "Month",    className: "bg-emerald-100 text-emerald-800 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-800" },
   "any-time":          { label: "Anytime",  className: "bg-sky-100 text-sky-800 ring-sky-200 dark:bg-sky-950 dark:text-sky-300 dark:ring-sky-800" },
+  "birthday-custom":   { label: "Custom",   className: "bg-violet-100 text-violet-800 ring-violet-200 dark:bg-violet-950 dark:text-violet-300 dark:ring-violet-800" },
 };
 
-function isPurchaseRequired(freebie: Freebie): boolean {
-  if (freebie.tags?.includes("no-purchase-required")) return false;
-  if (freebie.tags?.includes("purchase-required")) return true;
-  return freebie.requirements.some((r) => r.toLowerCase().includes("purchase required"));
+/** Generates a human-readable custom window description. */
+function customWindowText(daysBefore?: number | null, daysAfter?: number | null): string {
+  const before = daysBefore ?? 0;
+  const after  = daysAfter  ?? 0;
+  if (before > 0 && after > 0)
+    return `${before} day${before !== 1 ? "s" : ""} before birthday through ${after} day${after !== 1 ? "s" : ""} after`;
+  if (before > 0)
+    return `${before} day${before !== 1 ? "s" : ""} before birthday through birthday day`;
+  if (after > 0)
+    return `Birthday day through ${after} day${after !== 1 ? "s" : ""} after`;
+  return "Birthday day only";
+}
+
+/** Human-readable label + whether a purchase is required, derived from structured dealCondition. */
+function dealBadge(freebie: Freebie): { label: string; requiresPurchase: boolean } {
+  switch (freebie.dealCondition) {
+    case "none":
+      return { label: "FREE", requiresPurchase: false };
+    case "any-purchase":
+      return { label: "w/ purch", requiresPurchase: true };
+    case "min-purchase": {
+      const amt = freebie.minimumPurchaseAmount;
+      return { label: amt ? `w/ $${amt}+ purch` : "w/ min purch", requiresPurchase: true };
+    }
+    case "prior-purchase":
+      return { label: "prior purch req'd", requiresPurchase: true };
+    default:
+      return { label: "FREE", requiresPurchase: false };
+  }
 }
 
 /** Returns true if this freebie is valid/claimable RIGHT NOW given the user's birthday month. */
@@ -94,18 +120,41 @@ async function shareOrCopy(freebie: Freebie) {
 
 // ─── Flag-as-changed sub-form ─────────────────────────────────────────────────
 
+const DEAL_CONDITION_OPTIONS = [
+  { value: "",              label: "— What changed? (optional)" },
+  { value: "none",          label: "Now free (no purchase required)" },
+  { value: "any-purchase",  label: "Now requires a purchase" },
+  { value: "min-purchase",  label: "Now requires a minimum purchase" },
+  { value: "prior-purchase",label: "Now requires prior purchase history" },
+  { value: "expired",       label: "Deal no longer exists" },
+] as const;
+
 function FlagForm({ freebieId, onClose }: { freebieId: string; onClose: () => void }) {
-  const [desc, setDesc]     = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error" | "dupe">("idle");
+  const [desc, setDesc]             = useState("");
+  const [dealChange, setDealChange] = useState("");
+  const [minAmount, setMinAmount]   = useState("");
+  const [status, setStatus]         = useState<"idle" | "loading" | "done" | "error" | "dupe">("idle");
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (desc.trim().length < 10) return;
+    if (desc.trim().length < 5) return;
     setStatus("loading");
+
+    // Build structured proposedChanges if a deal condition was selected
+    let proposedChanges: Record<string, unknown> | null = null;
+    if (dealChange === "expired") {
+      proposedChanges = { isActive: false };
+    } else if (dealChange && dealChange !== "") {
+      proposedChanges = { dealCondition: dealChange };
+      if (dealChange === "min-purchase" && minAmount) {
+        proposedChanges.minimumPurchaseAmount = parseInt(minAmount);
+      }
+    }
+
     const res = await fetch("/api/change-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ freebieId, description: desc.trim() }),
+      body: JSON.stringify({ freebieId, description: desc.trim(), proposedChanges }),
     }).catch(() => null);
     if (!res) { setStatus("error"); return; }
     if (res.status === 429) { setStatus("dupe"); return; }
@@ -125,13 +174,37 @@ function FlagForm({ freebieId, onClose }: { freebieId: string; onClose: () => vo
   return (
     <form onSubmit={submit} className="space-y-2 rounded-lg border border-border bg-muted/40 p-3">
       <p className="text-xs font-medium text-foreground">What changed?</p>
+
+      {/* Structured change selector */}
+      <select
+        value={dealChange}
+        onChange={(e) => setDealChange(e.target.value)}
+        className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+      >
+        {DEAL_CONDITION_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+
+      {/* Min amount field if min-purchase selected */}
+      {dealChange === "min-purchase" && (
+        <input
+          type="number" min="1" max="999"
+          placeholder="Minimum $ amount"
+          value={minAmount}
+          onChange={(e) => setMinAmount(e.target.value)}
+          className="w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+        />
+      )}
+
+      {/* Free text description */}
       <textarea
         rows={2}
         required
-        minLength={10}
+        minLength={5}
         value={desc}
         onChange={(e) => setDesc(e.target.value)}
-        placeholder="e.g. This freebie now requires a purchase"
+        placeholder="Describe what changed (e.g. 'now requires $5 purchase per visit')"
         className="w-full resize-none rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
       />
       {status === "dupe"  && <p className="text-[10px] text-amber-600">You already flagged this today.</p>}
@@ -150,17 +223,37 @@ function FlagForm({ freebieId, onClose }: { freebieId: string; onClose: () => vo
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+import type { ChangeReportSummary } from "@/components/freebies/FreebieList";
+
+/** Generates a human-readable description of a structured change proposal. */
+function proposalText(p: NonNullable<ChangeReportSummary["proposedChanges"]>): string {
+  if (p.isActive === false) return "This deal may no longer be available.";
+  if (p.dealCondition === "any-purchase") return "Now requires a purchase.";
+  if (p.dealCondition === "min-purchase")
+    return p.minimumPurchaseAmount
+      ? `Now requires a $${p.minimumPurchaseAmount}+ purchase.`
+      : "Now requires a minimum purchase.";
+  if (p.dealCondition === "prior-purchase")
+    return `Now requires prior purchase history${p.priorPurchasePeriod ? ` (${p.priorPurchasePeriod})` : ""}.`;
+  if (p.dealCondition === "none") return "Deal is now completely free (no purchase required).";
+  if (p.whatYouGet) return `Deal changed to: "${p.whatYouGet}".`;
+  if (p.claimWindow) return `Claim window changed to: ${p.claimWindow.replace(/-/g, " ")}.`;
+  return "Policy may have changed.";
+}
+
 export function FreebieCard({
   freebie,
-  isFlagged = false,
+  changeReport = null,
 }: {
-  freebie:   Freebie;
-  isFlagged?: boolean;
+  freebie:      Freebie;
+  changeReport?: ChangeReportSummary | null;
 }) {
   const hydrated = useHydration();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded]     = useState(false);
   const [showFlagForm, setShowFlagForm] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]             = useState(false);
+  const [reportVote, setReportVote]     = useState<"true" | "false" | null>(null);
+  const [reportVoteCounts, setReportVoteCounts] = useState<{ true: number; false: number } | null>(null);
 
   const isChecked      = useFreebieStore(selectIsChecked(freebie.id));
   const isRemoved      = useFreebieStore(selectIsRemoved(freebie.id));
@@ -175,8 +268,26 @@ export function FreebieCard({
   const claimWindowStyle = CLAIM_WINDOW_STYLES[freebie.claimWindow];
   const categoryStyle    = CATEGORY_STYLES[freebie.category];
   const showFindNearest  = freebie.claimMethod === "in-store" || freebie.claimMethod === "both";
-  const purchaseRequired = isPurchaseRequired(freebie);
+  const { label: dealLabel, requiresPurchase: purchaseRequired } = dealBadge(freebie);
   const isCommunityTip   = freebie.source === "community";
+
+  async function handleReportVote(vote: "true" | "false") {
+    if (!changeReport || reportVote === vote) return;
+    setReportVote(vote);
+    const prev = reportVoteCounts ?? { true: changeReport.trueVotes, false: changeReport.falseVotes };
+    // Optimistic update
+    setReportVoteCounts({
+      true:  prev.true  + (vote === "true"  ? 1 : 0) - (reportVote === "true"  ? 1 : 0),
+      false: prev.false + (vote === "false" ? 1 : 0) - (reportVote === "false" ? 1 : 0),
+    });
+    await fetch("/api/change-reports/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reportId: changeReport.reportId, vote }),
+    }).catch(() => {
+      setReportVote(null); // revert on error
+    });
+  }
 
   async function handleShare() {
     await shareOrCopy(freebie);
@@ -251,7 +362,7 @@ export function FreebieCard({
             ? "bg-amber-50 text-amber-700 ring-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:ring-amber-700"
             : "bg-emerald-50 text-emerald-700 ring-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:ring-emerald-700"
         )}>
-          {purchaseRequired ? "w/purch" : "FREE"}
+          {dealLabel}
         </span>
 
         {/* Claim window */}
@@ -269,11 +380,48 @@ export function FreebieCard({
         <div className="overflow-hidden">
           <div className="space-y-3 border-t border-border/60 px-3 pb-3 pt-3">
 
-            {/* Possibly-changed banner (2.14) */}
-            {isFlagged && (
-              <div className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-800">
-                <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
-                <span>Some users have reported this freebie may have changed. Verify before heading out.</span>
+            {/* Change report banner — rich with description + True/False voting */}
+            {changeReport && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2.5 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:ring-amber-800">
+                <div className="flex items-start gap-1.5">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="flex-1 space-y-1.5">
+                    <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                      Users report a policy change:
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400">
+                      {changeReport.proposedChanges
+                        ? proposalText(changeReport.proposedChanges)
+                        : changeReport.description}
+                    </p>
+                    {/* True/False voting */}
+                    <div className="flex items-center gap-2 pt-0.5">
+                      <span className="text-[10px] text-amber-600 dark:text-amber-500">Is this accurate?</span>
+                      <button
+                        onClick={() => handleReportVote("true")}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 transition-colors",
+                          reportVote === "true"
+                            ? "bg-emerald-100 text-emerald-700 ring-emerald-300"
+                            : "bg-white text-amber-700 ring-amber-300 hover:bg-emerald-50 dark:bg-amber-900/40"
+                        )}
+                      >
+                        ✓ Yes · {(reportVoteCounts?.true ?? changeReport.trueVotes) + (reportVote === "true" ? 0 : 0)}
+                      </button>
+                      <button
+                        onClick={() => handleReportVote("false")}
+                        className={cn(
+                          "flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 transition-colors",
+                          reportVote === "false"
+                            ? "bg-red-100 text-red-700 ring-red-300"
+                            : "bg-white text-amber-700 ring-amber-300 hover:bg-red-50 dark:bg-amber-900/40"
+                        )}
+                      >
+                        ✗ No · {(reportVoteCounts?.false ?? changeReport.falseVotes)}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -305,7 +453,14 @@ export function FreebieCard({
                   ? "bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950 dark:text-amber-300"
                   : "bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950 dark:text-emerald-300"
               )}>
-                {purchaseRequired ? "Purchase required" : "No purchase needed"}
+                {purchaseRequired
+                  ? freebie.dealCondition === "prior-purchase"
+                    ? `Prior purchase required${freebie.priorPurchasePeriod ? ` (${freebie.priorPurchasePeriod})` : ""}`
+                    : freebie.dealCondition === "min-purchase" && freebie.minimumPurchaseAmount
+                      ? `Minimum $${freebie.minimumPurchaseAmount} purchase required`
+                      : "Purchase required"
+                  : "No purchase needed"
+                }
               </span>
               {checked && (
                 <span className="inline-flex h-5 items-center gap-1 rounded-full bg-emerald-100 px-2 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-200">
@@ -318,6 +473,13 @@ export function FreebieCard({
             <div className="rounded-lg bg-primary/5 px-3 py-2">
               <p className="text-sm font-medium leading-snug text-foreground">🎁 {freebie.whatYouGet}</p>
             </div>
+
+            {/* Custom claim window explanation */}
+            {freebie.claimWindow === "birthday-custom" && (
+              <p className="text-xs font-medium text-violet-700 dark:text-violet-300">
+                📅 {customWindowText(freebie.claimWindowDaysBefore, freebie.claimWindowDaysAfter)}
+              </p>
+            )}
 
             {/* Claim window notes */}
             {freebie.claimWindowNotes && (

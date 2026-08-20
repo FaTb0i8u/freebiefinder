@@ -26,6 +26,7 @@ const CLAIM_WINDOWS = [
   { value: "birthday-day-only", label: "Birthday day only" },
   { value: "birthday-week",     label: "Birthday week" },
   { value: "birthday-month",    label: "Birthday month" },
+  { value: "birthday-custom",   label: "Custom (X days before / Y days after)" },
   { value: "any-time",          label: "Anytime" },
 ];
 
@@ -36,15 +37,20 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
   const [status, setStatus]           = useState<Status>("idle");
   const [requirements, setRequirements] = useState<string[]>([""]);
   const [form, setForm] = useState({
-    businessName:     "",
-    category:         "food-drink",
-    whatYouGet:       "",
-    claimMethod:      "in-store",
-    claimWindow:      "birthday-month",
-    claimWindowNotes: "",
-    sourceUrl:        "https://",
-    coverageType:     "national",
-    initialCity:      "",
+    businessName:          "",
+    category:              "food-drink",
+    whatYouGet:            "",
+    claimMethod:           "in-store",
+    claimWindow:           "birthday-month",
+    claimWindowNotes:      "",
+    sourceUrl:             "https://",
+    coverageType:          "national",
+    initialCity:           "",
+    claimWindowDaysBefore: "0",
+    claimWindowDaysAfter:  "0",
+    dealCondition:         "none",
+    minimumPurchaseAmount: "",
+    priorPurchasePeriod:   "",
   });
 
   function setField(key: keyof typeof form, value: string) {
@@ -69,8 +75,12 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
 
     const payload = {
       ...form,
-      requirements: requirements.filter((r) => r.trim()),
-      availableCities: form.initialCity.trim() ? [form.initialCity.trim()] : [],
+      requirements:          requirements.filter((r) => r.trim()),
+      availableCities:       form.initialCity.trim() ? [form.initialCity.trim()] : [],
+      claimWindowDaysBefore: form.claimWindow === "birthday-custom" ? parseInt(form.claimWindowDaysBefore) || 0 : null,
+      claimWindowDaysAfter:  form.claimWindow === "birthday-custom" ? parseInt(form.claimWindowDaysAfter)  || 0 : null,
+      minimumPurchaseAmount: form.dealCondition === "min-purchase" ? parseInt(form.minimumPurchaseAmount) || null : null,
+      priorPurchasePeriod:   form.dealCondition === "prior-purchase" ? form.priorPurchasePeriod.trim() || null : null,
     };
 
     try {
@@ -171,6 +181,32 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
           </select>
         </div>
 
+        {/* Custom window: days before / after */}
+        {form.claimWindow === "birthday-custom" && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Days before birthday</label>
+              <Input
+                type="number" min="0" max="60"
+                placeholder="0"
+                value={form.claimWindowDaysBefore}
+                onChange={(e) => setField("claimWindowDaysBefore", e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">0 = window opens on birthday</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Days after birthday</label>
+              <Input
+                type="number" min="0" max="60"
+                placeholder="0"
+                value={form.claimWindowDaysAfter}
+                onChange={(e) => setField("claimWindowDaysAfter", e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">0 = expires on birthday</p>
+            </div>
+          </>
+        )}
+
         {/* Notes */}
         <div className="col-span-2 space-y-1">
           <label className="text-xs font-medium text-foreground">Notes (optional)</label>
@@ -216,6 +252,31 @@ export function SubmissionForm({ onClose }: { onClose?: () => void }) {
             )}
           </div>
         </div>
+
+        {/* Deal condition */}
+        <div className="col-span-2 space-y-1">
+          <label className="text-xs font-medium text-foreground">Purchase Requirement *</label>
+          <select className={selectClass} value={form.dealCondition} onChange={(e) => setField("dealCondition", e.target.value)}>
+            <option value="none">No purchase required — just show up</option>
+            <option value="any-purchase">Any purchase required</option>
+            <option value="min-purchase">Minimum purchase ($X or more)</option>
+            <option value="prior-purchase">Prior purchase required (must be existing customer)</option>
+          </select>
+        </div>
+        {form.dealCondition === "min-purchase" && (
+          <div className="col-span-2 space-y-1">
+            <label className="text-xs font-medium text-foreground">Minimum purchase amount ($)</label>
+            <Input type="number" min="1" max="999" placeholder="e.g. 5"
+              value={form.minimumPurchaseAmount} onChange={(e) => setField("minimumPurchaseAmount", e.target.value)} />
+          </div>
+        )}
+        {form.dealCondition === "prior-purchase" && (
+          <div className="col-span-2 space-y-1">
+            <label className="text-xs font-medium text-foreground">Prior purchase period</label>
+            <Input placeholder="e.g. within the past year"
+              value={form.priorPurchasePeriod} onChange={(e) => setField("priorPurchasePeriod", e.target.value)} />
+          </div>
+        )}
 
         {/* Coverage type */}
         <div className="col-span-2 space-y-1">

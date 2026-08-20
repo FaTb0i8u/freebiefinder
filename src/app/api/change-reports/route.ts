@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import { changeReports } from "@/db/schema";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -8,8 +8,6 @@ import { hashIp, getIpFromRequest } from "@/lib/ipHash";
 // ─── GET — public summary OR admin full list ─────────────────────────────────
 // Without ?key=  → returns { flaggedIds: string[] } (freebieIds with ≥3 reports)
 // With    ?key=  → returns full report rows (admin only)
-
-const FLAG_THRESHOLD = 3;
 
 export async function GET(req: NextRequest) {
   const key = req.nextUrl.searchParams.get("key");
@@ -32,28 +30,45 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Public: return only which freebieIds are flagged (count ≥ threshold)
+  // Public: return open/escalated reports with enough votes to show to users.
+  // Returns the highest-voted open report per freebieId as a summary.
   try {
     const db   = getDb();
     const rows = await db
-      .select({ freebieId: changeReports.freebieId })
+      .select()
       .from(changeReports)
-      .where(eq(changeReports.status, "open"));
+      .where(
+        sql`${changeReports.status} IN ('open', 'escalated')
+        AND ${changeReports.freebieId} IS NOT NULL`
+      );
 
-    // Count per freebieId
-    const counts: Record<string, number> = {};
-    for (const { freebieId } of rows) {
-      counts[freebieId] = (counts[freebieId] ?? 0) + 1;
+    // Group by freebieId, keep the one with most trueVotes
+    const byFreebie = new Map<string, typeof rows[0]>();
+    for (const row of rows) {
+      if (!row.freebieId) continue;
+      const existing = byFreebie.get(row.freebieId);
+      if (!existing || row.trueVotes > existing.trueVotes) {
+        byFreebie.set(row.freebieId, row);
+      }
     }
-    const flaggedIds = Object.entries(counts)
-      .filter(([, count]) => count >= FLAG_THRESHOLD)
-      .map(([id]) => id);
 
-    return NextResponse.json({ flaggedIds });
+    // Only expose reports that have at least 1 trueVote (filter noise)
+    const flaggedReports = Array.from(byFreebie.values())
+      .filter((r) => r.trueVotes >= 1)
+      .map((r) => ({
+        reportId:        r.id,
+        freebieId:       r.freebieId,
+        description:     r.description,
+        proposedChanges: r.proposedChanges ? JSON.parse(r.proposedChanges) : null,
+        trueVotes:       r.trueVotes,
+        falseVotes:      r.falseVotes,
+        status:          r.status,
+      }));
+
+    return NextResponse.json({ flaggedReports });
   } catch (err) {
     console.error("GET /api/change-reports (public) error:", err);
-    // Return empty rather than failing the whole page
-    return NextResponse.json({ flaggedIds: [] });
+    return NextResponse.json({ flaggedReports: [] });
   }
 }
 
@@ -87,9 +102,20 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getDb();
+
+    // Store structured proposedChanges as JSON if provided (whitelist enforced on vote/apply)
+    const proposedChanges = body.proposedChanges && typeof body.proposedChanges === "object"
+      ? JSON.stringify(body.proposedChanges)
+      : null;
+
     const [report] = await db
       .insert(changeReports)
-      .values({ freebieId, description: description.trim(), reporterIpHash: ipHash })
+      .values({
+        freebieId,
+        description:     description.trim(),
+        proposedChanges,
+        reporterIpHash:  ipHash,
+      })
       .returning();
 
     return NextResponse.json(report, { status: 201 });

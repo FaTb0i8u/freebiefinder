@@ -23,15 +23,17 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     return <AdminLoginForm error />;
   }
 
-  let pending: typeof communitySubmissions.$inferSelect[] = [];
-  let reports: typeof changeReports.$inferSelect[] = [];
+  let pending:   typeof communitySubmissions.$inferSelect[] = [];
+  let reports:   typeof changeReports.$inferSelect[] = [];
+  let escalated: typeof changeReports.$inferSelect[] = [];
   let dbError = false;
 
   try {
     const db = getDb();
-    [pending, reports] = await Promise.all([
+    [pending, reports, escalated] = await Promise.all([
       db.select().from(communitySubmissions).where(eq(communitySubmissions.status, "pending")),
       db.select().from(changeReports).where(eq(changeReports.status, "open")),
+      db.select().from(changeReports).where(eq(changeReports.status, "escalated")),
     ]);
   } catch {
     dbError = true;
@@ -53,6 +55,52 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
         {/* Quick-create approved entry */}
         <AdminCreateForm adminKey={key!} />
+
+        {/* Escalated change reports — high-confidence, action needed */}
+        {escalated.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-lg font-semibold text-red-400 flex items-center gap-2">
+              ⚠️ High-Confidence Changes — Action Needed
+              <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-sm text-red-400">
+                {escalated.length}
+              </span>
+            </h2>
+            <p className="mb-3 text-xs text-zinc-400">
+              These reports reached the True-vote threshold with community consensus. Review and update the freebie, then dismiss.
+            </p>
+            <div className="space-y-3">
+              {escalated.map((r) => {
+                const proposal = r.proposedChanges ? JSON.parse(r.proposedChanges) : null;
+                return (
+                  <div key={r.id} className="rounded-lg bg-red-900/20 p-4 ring-2 ring-red-800">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <p className="text-xs font-mono text-zinc-400">
+                          Freebie: <span className="text-white">{r.freebieId ?? `Submission: ${r.submissionId}`}</span>
+                        </p>
+                        <p className="text-sm text-zinc-200">{r.description}</p>
+                        {proposal && (
+                          <div className="mt-1 rounded bg-zinc-900 px-2 py-1 text-xs font-mono text-emerald-400">
+                            Proposed: {JSON.stringify(proposal)}
+                          </div>
+                        )}
+                        <div className="flex gap-2 text-xs">
+                          <span className="rounded bg-emerald-900/40 px-1.5 py-0.5 text-emerald-400">✓ Yes: {r.trueVotes}</span>
+                          <span className="rounded bg-red-900/40 px-1.5 py-0.5 text-red-400">✗ No: {r.falseVotes}</span>
+                        </div>
+                      </div>
+                      <form action={dismissChangeReport.bind(null, r.id)}>
+                        <button type="submit" className="rounded bg-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-200 hover:bg-zinc-600">
+                          Dismiss
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Pending Submissions */}
         <section>

@@ -49,9 +49,14 @@ export async function POST(req: NextRequest) {
         claimWindow:      body.claimWindow,
         claimWindowNotes: body.claimWindowNotes?.trim() || null,
         sourceUrl:        body.sourceUrl.trim(),
-        status:           "approved", // ← instantly live
+        status:                "approved", // ← instantly live
         coverageType,
         availableCities,
+        claimWindowDaysBefore: body.claimWindow === "birthday-custom" ? (parseInt(body.claimWindowDaysBefore) || 0) : null,
+        claimWindowDaysAfter:  body.claimWindow === "birthday-custom" ? (parseInt(body.claimWindowDaysAfter)  || 0) : null,
+        dealCondition:         ["none","any-purchase","min-purchase","prior-purchase"].includes(body.dealCondition) ? body.dealCondition : "none",
+        minimumPurchaseAmount: body.dealCondition === "min-purchase" ? (parseInt(body.minimumPurchaseAmount) || null) : null,
+        priorPurchasePeriod:   body.dealCondition === "prior-purchase" ? (body.priorPurchasePeriod?.trim() || null) : null,
       })
       .returning();
 

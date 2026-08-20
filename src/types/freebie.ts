@@ -7,11 +7,23 @@ export type FreebieCategory =
 
 export type ClaimMethod = "in-store" | "online" | "app" | "both";
 
+/**
+ * The purchase condition required to claim the freebie AT THE TIME OF VISIT.
+ * Membership / rewards sign-up prerequisites live in `requirements[]` — not here.
+ * This axis is strictly about what money (if any) must change hands that day.
+ */
+export type DealCondition =
+  | "none"            // Nothing required — just show up (or open the app)
+  | "any-purchase"    // Must buy something, any amount
+  | "min-purchase"    // Must spend at least $X — see minimumPurchaseAmount
+  | "prior-purchase"; // Must have been a paying customer before — see priorPurchasePeriod
+
 export type ClaimWindow =
   | "birthday-day-only"
   | "birthday-week"
   | "birthday-month"
-  | "any-time"; // some don't require proof of birth date
+  | "any-time"        // some don't require proof of birth date
+  | "birthday-custom"; // X days before through Y days after — see claimWindowDaysBefore/After
 
 export type FreebieSource = "curated" | "community";
 
@@ -31,6 +43,16 @@ export interface Freebie {
   claimWindow: ClaimWindow;
   /** Notes on how the window actually works */
   claimWindowNotes?: string;
+  /** For "birthday-custom": days before birthday the window opens (0 = birthday day itself) */
+  claimWindowDaysBefore?: number | null;
+  /** For "birthday-custom": days after birthday the window closes (0 = expires on birthday) */
+  claimWindowDaysAfter?: number | null;
+  /** Purchase condition required at the time of claiming — see DealCondition */
+  dealCondition: DealCondition;
+  /** For dealCondition="min-purchase": minimum spend in dollars */
+  minimumPurchaseAmount?: number | null;
+  /** For dealCondition="prior-purchase": human-readable period, e.g. "within the past year" */
+  priorPurchasePeriod?: string | null;
   /** E.g., must sign up at least 7 days before birthday */
   registrationDeadline?: string;
   /** Verified source URL for this freebie */

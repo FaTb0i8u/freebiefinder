@@ -17,9 +17,11 @@ export function AdminCreateForm({ adminKey }: { adminKey: string }) {
     claimMethod:      "in-store",
     claimWindow:      "birthday-month",
     claimWindowNotes: "",
-    sourceUrl:        "https://",
-    coverageType:     "national",
-    availableCities:  "",
+    sourceUrl:             "https://",
+    coverageType:          "national",
+    availableCities:       "",
+    claimWindowDaysBefore: "0",
+    claimWindowDaysAfter:  "0",
   });
 
   function setField(key: keyof typeof form, value: string) {
@@ -32,6 +34,7 @@ export function AdminCreateForm({ adminKey }: { adminKey: string }) {
       claimMethod: "in-store", claimWindow: "birthday-month",
       claimWindowNotes: "", sourceUrl: "https://",
       coverageType: "national", availableCities: "",
+      claimWindowDaysBefore: "0", claimWindowDaysAfter: "0",
     });
     setRequirements([""]);
     setStatus("idle");
@@ -48,8 +51,10 @@ export function AdminCreateForm({ adminKey }: { adminKey: string }) {
 
     const payload = {
       ...form,
-      requirements: requirements.filter((r) => r.trim()),
+      requirements:          requirements.filter((r) => r.trim()),
       availableCities,
+      claimWindowDaysBefore: form.claimWindow === "birthday-custom" ? parseInt(form.claimWindowDaysBefore) || 0 : null,
+      claimWindowDaysAfter:  form.claimWindow === "birthday-custom" ? parseInt(form.claimWindowDaysAfter)  || 0 : null,
     };
 
     const res = await fetch("/api/admin/submissions", {
@@ -140,9 +145,30 @@ export function AdminCreateForm({ adminKey }: { adminKey: string }) {
                 <option value="birthday-day-only">Birthday day only</option>
                 <option value="birthday-week">Birthday week</option>
                 <option value="birthday-month">Birthday month</option>
+                <option value="birthday-custom">Custom (X days before / Y days after)</option>
                 <option value="any-time">Anytime</option>
               </select>
             </div>
+
+            {/* Custom window: days before / after */}
+            {form.claimWindow === "birthday-custom" && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-300">Days before birthday</label>
+                  <input type="number" min="0" max="60" className={inputClass}
+                    placeholder="0" value={form.claimWindowDaysBefore}
+                    onChange={(e) => setField("claimWindowDaysBefore", e.target.value)} />
+                  <p className="text-[10px] text-zinc-500">0 = opens on birthday</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-zinc-300">Days after birthday</label>
+                  <input type="number" min="0" max="60" className={inputClass}
+                    placeholder="0" value={form.claimWindowDaysAfter}
+                    onChange={(e) => setField("claimWindowDaysAfter", e.target.value)} />
+                  <p className="text-[10px] text-zinc-500">0 = expires on birthday</p>
+                </div>
+              </>
+            )}
 
             {/* Coverage */}
             <div className="space-y-1">
